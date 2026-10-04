@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 면접 및 채용 Agent</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* 대화 말풍선 스타일 */
+    .chat-bubble {
+      max-width: 80%;
+      padding: 14px 18px;
+      border-radius: 16px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+    .chat-ai {
+      background: #ffffff;
+      color: #1e293b;
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .chat-user {
+      background: #2563eb;
+      color: #ffffff;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+      box-shadow: 0 2px 5px rgba(37,99,235,0.25);
+    }
+
+    /* 서류 슬라이드 연출 */
+    @keyframes paperSlideUp {
+      from { opacity: 0; transform: translateY(40px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .paper-report {
+      animation: paperSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .word-badge { display: inline-block; padding: 6px 12px; margin: 4px; border-radius: 8px; font-weight: 700; color: white; font-size: 0.875rem; }
+    .green { background-color: #10b981; }
+    .orange { background-color: #f97316; }
+    .red { background-color: #ef4444; }
+  </style>
+</head>
+<body class="p-4 md:p-8">
+
+<div class="max-w-4xl mx-auto space-y-6">
+  
+  <!-- 상단 헤더 -->
+  <header class="flex items-center justify-between pb-4 border-b border-slate-200">
+    <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 flex items-center gap-2">
+      <span>🤖</span> 취업 지원 AI Agent
+    </h1>
+    <span class="text-xs md:text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">스마트 채용 코치</span>
+  </header>
+
+  <!-- 탭 네비게이션 -->
+  <nav class="flex gap-2 p-1.5 bg-slate-200/80 rounded-xl">
+    <button class="nav-btn active flex-1 py-3 px-4 rounded-lg font-bold text-sm md:text-base text-slate-700 transition-all bg-white text-blue-600 shadow-sm" onclick="switchTab('tab1', this)">1. 실시간 채용 정보</button>
+    <button class="nav-btn flex-1 py-3 px-4 rounded-lg font-bold text-sm md:text-base text-slate-700 transition-all hover:text-slate-900" onclick="switchTab('tab2', this)">2. 발음 교정 AI</button>
+    <button class="nav-btn flex-1 py-3 px-4 rounded-lg font-bold text-sm md:text-base text-slate-700 transition-all hover:text-slate-900" onclick="switchTab('tab3', this)">3. AI 모의 면접</button>
+  </nav>
+
+  <!-- TAB 1: 실시간 채용 정보 -->
+  <main id="tab1" class="tab-content active bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+    <div class="space-y-2">
+      <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">🔍 실시간 채용 정보 탐색</h2>
+      <p class="text-sm text-slate-500">목표하는 기업명을 입력하시면 최신 공식 채용 공고와 상세 자격요건을 정제하여 불러옵니다.</p>
+    </div>
+
+    <div class="flex gap-3">
+      <input type="text" id="companyInput" placeholder="기업명을 입력하세요 (예: 카카오, 네이버, 삼성전자)" class="flex-1 px-4 py-3.5 border border-slate-300 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all text-sm font-medium">
+      <button onclick="searchJobs()" class="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-all shadow-sm shrink-0">검색하기</button>
+    </div>
+
+    <div id="jobResult" class="space-y-4 pt-2">
+      <!-- 기본 검색 안내 -->
+      <div class="text-center py-10 bg-slate-50 border border-dashed border-slate-200 rounded-xl">
+        <p class="text-slate-400 text-sm">원하시는 기업명을 검색하시면 여기에 맞춤형 채용 결과가 표시됩니다.</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- TAB 2: 발음 교정 AI -->
+  <main id="tab2" class="tab-content bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+    <div class="space-y-2">
+      <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">🎙️ AI 발음 정밀 분석</h2>
+      <p class="text-sm text-slate-500">제공된 문장을 소리 내어 읽고 음성을 녹음하세요. AI가 단어별 발음 정확도를 정밀 측정합니다.</p>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <label for="pronunciationLevel" class="block text-sm font-semibold text-slate-700 mb-1.5">난이도 선택</label>
+        <select id="pronunciationLevel" class="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all">
+          <option value="beginner">초급</option>
+          <option value="intermediate">중급</option>
+          <option value="advanced">고급</option>
+        </select>
+      </div>
+      <div>
+        <label for="pronunciationSentence" class="block text-sm font-semibold text-slate-700 mb-1.5">문장 선택</label>
+        <select id="pronunciationSentence" class="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all"></select>
+      </div>
+    </div>
+
+    <div class="p-5 bg-blue-50/60 border border-blue-200 rounded-xl space-y-2">
+      <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">연습 문장</span>
+      <div id="targetSentence" class="text-slate-800 font-bold text-lg leading-relaxed"></div>
+    </div>
+
+    <div class="flex items-center gap-4">
+      <button id="recordBtn" onclick="toggleSpeech()" class="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-all shadow-sm flex items-center gap-2">
+        <span>🎙️</span> 음성 녹음 시작
+      </button>
+      <span id="sttRecognized" class="text-sm font-medium text-slate-500">인식 대기 중...</span>
+    </div>
+
+    <div id="pronounceResult" class="pt-4 border-t border-slate-100"></div>
+
+    <section class="pt-5 border-t border-slate-100 space-y-3">
+      <div class="flex items-center justify-between gap-3">
+        <h3 class="font-bold text-slate-900">최근 연습 기록</h3>
+        <span class="text-xs text-slate-500">이 기기에 자동 저장</span>
+      </div>
+      <div id="pronunciationHistory" class="space-y-2">
+        <p class="text-sm text-slate-400">아직 저장된 기록이 없습니다.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- TAB 3: AI 모의 면접 -->
+  <main id="tab3" class="tab-content space-y-6">
+    
+    <!-- Step 0: 안내 화면 -->
+    <div id="interviewStep0" class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+      <h3 class="text-xl font-bold text-slate-900">🎙️ AI 채팅 모의 면접 진행 안내</h3>
+      <p class="text-slate-600 text-sm leading-relaxed">
+        이력서 및 희망 목표를 바탕으로 실제 대기업 면접관 AI와 대화형 면접을 실시합니다.<br>
+        실시간 질문별 AI TIP 가이드, 답변 시간 제한 관리, 그리고 면접 완료 후 종합 피드백 보고서가 제공됩니다.
+      </p>
+      <button onclick="goToStep(1)" class="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-all shadow-sm">
+        면접 시작하기 (이력서 작성)
+      </button>
+    </div>
+
+    <!-- Step 1: 학력 및 자격증 -->
+    <div id="interviewStep1" class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-5 hidden">
+      <h3 class="text-lg font-bold text-slate-900 border-b pb-3">📄 이력서 작성 (1/3) - 학력 및 자격증</h3>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">최종 학력</label>
+          <input type="text" id="resumeEdu" placeholder="예: 대학교 재학 / 졸업" class="w-full px-4 py-3.5 border border-slate-300 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">보유 자격증</label>
+          <input type="text" id="resumeCerts" placeholder="예: 정보처리기사, SQLD (없으면 '없음')" class="w-full px-4 py-3.5 border border-slate-300 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all">
+        </div>
+      </div>
+
+      <div class="pt-2">
+        <button onclick="goToStep(2)" class="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-all shadow-sm">다음 단계</button>
+      </div>
+    </div>
+
+    <!-- Step 2: 수상 및 경력 -->
+    <div id="interviewStep2" class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-5 hidden">
+      <h3 class="text-lg font-bold text-slate-900 border-b pb-3">📄 이력서 작성 (2/3) - 수상 및 경력</h3>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">수상 내역</label>
+          <input type="text" id="resumeAwards" placeholder="예: 대학생 해커톤 우수상 (없으면 '없음')" class="w-full px-4 py-3.5 border border-slate-300 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">경력 및 경험 사항</label>
+          <input type="text" id="resumeExp" placeholder="예: 인턴 6개월, 동아리 프로젝트 경험 (없으면 '없음')" class="w-full px-4 py-3.5 border border-slate-300 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all">
+        </div>
+      </div>
+
+      <div class="pt-2">
+        <button onclick="saveResumeAndNext()" class="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-all shadow-sm">다음 단계</button>
+      </div>
+    </div>
+
+    <!-- Step 4: 목표 설정 -->
+    <div id="interviewStep4" class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-5 hidden">
+      <h3 class="text-lg font-bold text-slate-900 border-b pb-3">🎯 면접 목표 설정</h3>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">희망 직군</label>
+          <input type="text" id="jobGroupInput" placeholder="예: Service Planner, 백엔드 개발자, 서비스 기획" class="w-full px-4 py-3.5 border border-slate-300 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">희망 기업</label>
+          <input type="text" id="targetCompanyInput" placeholder="예: 카카오, 삼성전자, 현대자동차" class="w-full px-4 py-3.5 border border-slate-300 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all">
+        </div>
+      </div>
+
+      <div class="pt-2">
+        <button onclick="startInterviewChat()" class="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-all shadow-sm">실제 면접 시작하기</button>
+      </div>
+    </div>
+
+    <!-- Step 5: 대화형 채팅 면접 -->
+    <div id="interviewStep5" class="space-y-4 hidden">
+      
+      <!-- 상단 현황 바 -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex items-center gap-2 text-sm font-bold text-red-600 bg-red-50 px-3.5 py-1.5 rounded-lg border border-red-200" id="totalTimer">
+          ⏱️ 총 면접 시간: 00:00 (40분 제한)
+        </div>
+        <div class="flex items-center gap-2 text-sm font-bold text-amber-700 bg-amber-50 px-3.5 py-1.5 rounded-lg border border-amber-200" id="questionTimer">
+          ⏳ 질문 제한시간: 02:00
+        </div>
+      </div>
+
+      <!-- 메인 메신저 & TIP 패널 레이아웃 -->
+      <div class="flex flex-col md:flex-row gap-4 items-stretch">
+        
+        <!-- 왼쪽: 채팅창 및 답변 입력 영역 -->
+        <div class="flex-1 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div id="chatBox" class="h-[460px] overflow-y-auto p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4 flex flex-col"></div>
+
+          <div class="space-y-3">
+            <textarea id="userInput" rows="3" placeholder="답변을 입력하세요... (STT 버튼을 통해 음성 입력도 가능합니다)" class="w-full p-4 border border-slate-300 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all resize-none leading-relaxed"></textarea>
+            
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex gap-2">
+                <button onclick="submitAnswer()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs md:text-sm rounded-xl transition-all shadow-sm">제출하기</button>
+                <button onclick="toggleInterviewSpeech()" class="px-4 py-2.5 bg-slate-600 hover:bg-slate-700 text-white font-bold text-xs md:text-sm rounded-xl transition-all">🎙️ 음성 입력</button>
+              </div>
+
+              <button onclick="toggleTip()" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs md:text-sm rounded-xl transition-all shadow-sm flex items-center gap-1.5">
+                💡 AI가 알려주는 면접 TIP!
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 오른쪽: AI TIP 오버레이/우측 슬라이드 패널 -->
+        <div id="tipSidePanel" class="hidden md:w-80 bg-amber-50/90 border-2 border-amber-300 rounded-2xl p-5 flex-col justify-between shrink-0 shadow-sm transition-all">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between border-b border-amber-200 pb-2.5">
+              <h4 class="font-bold text-amber-900 text-sm flex items-center gap-1.5">
+                💡 AI 면접 가이드
+              </h4>
+              <button onclick="toggleTip()" class="text-xs font-bold text-amber-800 hover:bg-amber-200 px-2 py-1 rounded transition">닫기 ✖</button>
+            </div>
+            <div id="tipContent" class="text-xs text-amber-950 leading-relaxed whitespace-pre-wrap max-h-[380px] overflow-y-auto pr-1">
+              질문이 시작되면 이 곳에 맞춤형 답변 가이드 힌트가 표시됩니다.
+            </div>
+          </div>
+          <p class="text-[11px] text-amber-700 border-t border-amber-200 pt-3 mt-4">
+            ※ 직접적인 정답 대신 생각을 정리할 수 있도록 돕는 힌트입니다.
+          </p>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Step 6: 결과 및 피드백 보고서 -->
+    <div id="interviewStep6" class="space-y-6 hidden">
+      <div class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <h3 id="resultNoticeTitle" class="text-xl font-bold text-slate-900">AI 분석 및 심사 보고서 생성 중...</h3>
+        <p id="resultNoticeText" class="text-sm text-slate-600 leading-relaxed">
+          면접 감독관 AI가 답변 내용, 키워드, 소요 시간을 바탕으로 최종 심사를 진행 중입니다.
+        </p>
+        <button onclick="showFeedbackPaper()" class="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-all shadow-sm">
+          📊 최종 평가 심사서 열람하기
+        </button>
+      </div>
+
+      <!-- 서류 형태 심사서 -->
+      <div id="feedbackPaper" class="paper-report bg-white border-2 border-slate-300 rounded-2xl p-8 shadow-xl space-y-6 hidden">
+        <div class="border-b-2 border-slate-200 pb-4 flex justify-between items-center">
+          <h3 class="text-2xl font-black text-slate-900">📋 AI 모의 면접 최종 평가 심사서</h3>
+          <span class="text-xs text-slate-400 font-mono">CONFIDENTIAL</span>
+        </div>
+
+        <div class="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+          <p id="paperScoreText" class="text-lg font-bold text-blue-900"></p>
+        </div>
+
+        <div class="space-y-2">
+          <h4 class="font-bold text-slate-800 text-base">[종합 피드백]</h4>
+          <p id="paperOverallFeedback" class="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap bg-slate-50 p-4 rounded-xl border border-slate-200"></p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="space-y-2 p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl">
+            <h4 class="font-bold text-emerald-900 text-sm">[강점 및 잘된 점]</h4>
+            <p id="paperGoodPoints" class="text-xs text-emerald-800 leading-relaxed whitespace-pre-wrap"></p>
+          </div>
+
+          <div class="space-y-2 p-4 bg-rose-50/60 border border-rose-200 rounded-xl">
+            <h4 class="font-bold text-rose-900 text-sm">[보완할 점 및 감점 요소]</h4>
+            <p id="paperBadPoints" class="text-xs text-rose-800 leading-relaxed whitespace-pre-wrap"></p>
+          </div>
+        </div>
+
+        <div class="pt-4 border-t border-slate-200 flex justify-end">
+          <button onclick="resetInterview()" class="px-6 py-3 bg-slate-700 hover:bg-slate-800 text-white font-bold rounded-xl text-sm transition-all">🔄 다시 시작하기</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+</div>
+
+<!-- 공고 상세 모달 -->
+<div id="jobDetailModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center p-4 z-50">
+  <div class="bg-white w-full max-w-lg rounded-2xl p-6 space-y-4 shadow-2xl border border-slate-100">
+    <div class="flex justify-between items-start border-b pb-3">
+      <h3 id="jobModalTitle" class="text-lg font-bold text-slate-900 leading-snug">공고 상세요강</h3>
+      <button onclick="closeJobDetail()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
+    </div>
+    
+    <div id="jobModalBody" class="text-sm text-slate-700 space-y-3 max-h-[320px] overflow-y-auto leading-relaxed pr-1"></div>
+    
+    <div class="flex justify-end gap-2 pt-3 border-t">
+      <a id="jobModalLink" href="#" target="_blank" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-all flex items-center gap-1">
+        <span>🔗</span> 원본 공고 바로가기
+      </a>
+      <button onclick="closeJobDetail()" class="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl text-xs transition-all">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let jobResultsData = [];
+
+  function switchTab(tabId, btn) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(el => {
+      el.classList.remove('active', 'bg-white', 'text-blue-600', 'shadow-sm');
+      el.classList.add('hover:text-slate-900');
+    });
+    
+    document.getElementById(tabId).classList.add('active');
+    btn.classList.add('active', 'bg-white', 'text-blue-600', 'shadow-sm');
+  }
+
+  // 1. 실시간 채용 정보 탐색
+  async function searchJobs() {
+    const company = document.getElementById('companyInput').value.trim();
+    const resBox = document.getElementById('jobResult');
+    if(!company) return alert('기업명을 입력해주세요');
+    
+    resBox.innerHTML = '<div class="text-slate-500 py-12 text-center text-sm font-medium">🔍 실시간 채용 정보를 수집 및 정제하고 있습니다...</div>';
+    
+    try {
+      const res = await fetch(`/api/jobs?company=${encodeURIComponent(company)}`);
+      const data = await res.json();
+      jobResultsData = data.data || [];
+
+      if (jobResultsData.length === 0) {
+        resBox.innerHTML = '<div class="text-slate-400 py-8 text-center text-sm">검색 결과가 없습니다.</div>';
+        return;
+      }
+
+      let html = '';
+      jobResultsData.forEach((item, idx) => {
+        html += `
+          <div class="p-5 border border-slate-200 hover:border-blue-300 rounded-2xl bg-white transition-all shadow-xs hover:shadow-md flex flex-col md:flex-row justify-between md:items-center gap-4">
+            <div class="space-y-1.5 flex-1">
+              <span class="inline-block text-xs font-bold px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-200">${item.badge}</span>
+              <h4 class="font-bold text-slate-900 text-base md:text-lg leading-snug">${item.title}</h4>
+              <p class="text-xs md:text-sm text-slate-600 leading-relaxed line-clamp-2">${item.snippet}</p>
+            </div>
+            <div class="flex md:flex-col gap-2 shrink-0">
+              <button onclick="openJobDetail(${idx})" class="flex-1 md:flex-none px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition-all">상세보기</button>
+              <a href="${item.link}" target="_blank" class="flex-1 md:flex-none px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl text-center transition-all">🔗 이동</a>
+            </div>
+          </div>
+        `;
+      });
+      resBox.innerHTML = html;
+    } catch(e) {
+      resBox.innerHTML = '<div class="text-red-500 py-8 text-center text-sm">채용 정보를 불러오는 도중 오류가 발생했습니다.</div>';
+    }
+  }
+
+  function openJobDetail(idx) {
+    const item = jobResultsData[idx];
+    if (!item) return;
+    document.getElementById('jobModalTitle').innerText = item.title;
+    document.getElementById('jobModalBody').innerHTML = `
+      <div class="space-y-2">
+        <p><strong class="text-slate-900">기업명:</strong> ${item.companyName}</p>
+        <p><strong class="text-slate-900">구분:</strong> ${item.badge}</p>
+        <div class="pt-2">
+          <strong class="text-slate-900 block mb-1">공고 주요 요약:</strong>
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs leading-relaxed text-slate-700 whitespace-pre-wrap">${item.snippet}</div>
+        </div>
+      </div>
+    `;
+    document.getElementById('jobModalLink').href = item.link;
+    document.getElementById('jobDetailModal').classList.remove('hidden');
+    document.getElementById('jobDetailModal').classList.add('flex');
+  }
+
+  function closeJobDetail() {
+    document.getElementById('jobDetailModal').classList.add('hidden');
+    document.getElementById('jobDetailModal').classList.remove('flex');
+  }
+
+  // 2. 발음 교정 AI
+  const pronunciationSentences = {
+    beginner: [
+      '오늘은 맑은 하늘 아래 공원을 천천히 걸었습니다',
+      '저는 새로운 사람을 만나 이야기 나누는 것을 좋아합니다',
+      '작은 목표를 꾸준히 실천하면 좋은 결과를 얻을 수 있습니다'
+    ],
+    intermediate: [
+      '협업 과정에서 서로 다른 의견을 조율해 일정 안에 결과물을 완성했습니다',
+      '문제의 원인을 정확히 파악하고 필요한 자료를 찾아 해결 방법을 제안했습니다',
+      '고객의 불편을 세심하게 살펴 사용하기 쉬운 서비스로 개선했습니다'
+    ],
+    advanced: [
+      '값을 치르고도 읽지 못한 자료를 다시 읽고 핵심 내용을 빠짐없이 정리했습니다',
+      '신뢰도 높은 데이터를 바탕으로 복잡한 업무 절차를 효율적으로 재구성했습니다',
+      '기술력과 경쟁력을 함께 높이기 위해 협력 기관과 장기적인 개선 계획을 수립했습니다'
+    ]
+  };
+  const pronunciationLevelNames = { beginner: '초급', intermediate: '중급', advanced: '고급' };
+  const pronunciationHistoryKey = 'pronunciationPracticeHistory';
+
+  function updatePronunciationSentences() {
+    const level = document.getElementById('pronunciationLevel').value;
+    const sentenceSelect = document.getElementById('pronunciationSentence');
+    sentenceSelect.innerHTML = pronunciationSentences[level]
+      .map((sentence, index) => `<option value="${index}">${sentence}</option>`)
+      .join('');
+    updateTargetSentence();
+  }
+
+  function updateTargetSentence() {
+    const level = document.getElementById('pronunciationLevel').value;
+    const index = Number(document.getElementById('pronunciationSentence').value);
+    document.getElementById('targetSentence').innerText = pronunciationSentences[level][index];
+  }
+
+  function getPronunciationHistory() {
+    try {
+      return JSON.parse(localStorage.getItem(pronunciationHistoryKey) || '[]');
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function renderPronunciationHistory() {
+    const historyEl = document.getElementById('pronunciationHistory');
+    const history = getPronunciationHistory();
+    historyEl.innerHTML = '';
+    if (history.length === 0) {
+      historyEl.innerHTML = '<p class="text-sm text-slate-400">아직 저장된 기록이 없습니다.</p>';
+      return;
+    }
+
+    history.slice(0, 10).forEach((entry) => {
+      const row = document.createElement('div');
+      row.className = 'flex items-start justify-between gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl';
+      const details = document.createElement('div');
+      details.className = 'min-w-0';
+      const sentence = document.createElement('p');
+      sentence.className = 'text-sm font-semibold text-slate-800';
+      sentence.innerText = entry.targetText;
+      const meta = document.createElement('p');
+      meta.className = 'text-xs text-slate-500 mt-1';
+      meta.innerText = `${pronunciationLevelNames[entry.level] || '난이도 미상'} · ${new Date(entry.timestamp).toLocaleString('ko-KR')}`;
+      const score = document.createElement('span');
+      score.className = 'text-sm font-bold text-blue-600 shrink-0';
+      score.innerText = `${entry.score}점`;
+      details.append(sentence, meta);
+      row.append(details, score);
+      historyEl.appendChild(row);
+    });
+  }
+
+  function savePronunciationScore(score, targetText, recognizedText) {
+    const level = document.getElementById('pronunciationLevel').value;
+    const history = getPronunciationHistory();
+    history.unshift({ score, level, targetText, recognizedText, timestamp: new Date().toISOString() });
+    try {
+      localStorage.setItem(pronunciationHistoryKey, JSON.stringify(history.slice(0, 30)));
+    } catch (error) {
+      console.warn('[Pronunciation History Save Error]', error);
+    }
+    renderPronunciationHistory();
+  }
+
+  let recSpeech;
+  let isRec = false;
+  document.getElementById('pronunciationLevel').addEventListener('change', updatePronunciationSentences);
+  document.getElementById('pronunciationSentence').addEventListener('change', updateTargetSentence);
+  updatePronunciationSentences();
+  renderPronunciationHistory();
+
+  function toggleSpeech() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return alert('크롬 브라우저를 사용해 주세요.');
+    if(!isRec) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recSpeech = new SpeechRecognition();
+      recSpeech.lang = 'ko-KR';
+      recSpeech.start();
+      isRec = true;
+      document.getElementById('recordBtn').innerHTML = '<span>⏹️</span> 녹음 중지 및 분석';
+
+      recSpeech.onresult = async (e) => {
+        const text = e.results[0][0].transcript;
+        document.getElementById('sttRecognized').innerText = `인식 결과: "${text}"`;
+        const targetText = document.getElementById('targetSentence').innerText.trim();
+        const level = document.getElementById('pronunciationLevel').value;
+        const resultEl = document.getElementById('pronounceResult');
+        resultEl.innerHTML = '<p class="text-sm text-slate-500">발음을 분석하고 있습니다...</p>';
+        try {
+          const res = await fetch('/api/pronunciation/analyze', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ targetText, recognizedText: text, level })
+          });
+          const data = await res.json();
+          if (!res.ok || !data.success) throw new Error(data.error || '발음 분석에 실패했습니다.');
+          savePronunciationScore(data.overallScore, targetText, text);
+          let html = `<div class="p-4 bg-slate-50 rounded-xl border border-slate-200"><h4 class="font-bold text-slate-800 mb-2 text-sm">발음 정확도 점수: <span class="text-blue-600 text-base">${data.overallScore}점</span></h4><div class="flex flex-wrap gap-1">`;
+          data.wordAnalysis.forEach(w => { html += `<span class="word-badge ${w.status}">${w.word}</span>`; });
+          html += '</div></div>';
+          resultEl.innerHTML = html;
+        } catch (error) {
+          resultEl.innerText = error.message || '발음 분석 중 오류가 발생했습니다.';
+        }
+      };
+      recSpeech.onend = () => { isRec = false; document.getElementById('recordBtn').innerHTML = '<span>🎙️</span> 음성 녹음 시작'; };
+    } else { recSpeech.stop(); }
+  }
+
+  // 3. AI 채팅 모의 면접
+  let resumeData = {};
+  let jobGroup = '';
+  let targetCompany = '';
+  let currentQuestionIdx = 0;
+  let questionsList = [];
+  let interviewLogs = [];
+  const maxInterviewQuestions = 8;
+  const fallbackInterviewQuestions = [
+    '말씀하신 경험에서 본인이 직접 맡은 역할과 책임은 무엇이었습니까?',
+    '그 과정에서 가장 큰 어려움은 무엇이었고, 원인을 어떻게 파악했습니까?',
+    '문제를 해결하기 위해 어떤 방법을 선택했고, 그 선택의 근거는 무엇입니까?',
+    '개선 결과를 어떤 기준이나 수치로 확인했습니까?',
+    '같은 상황을 다시 경험한다면 무엇을 다르게 하겠습니까?',
+    '이 경험에서 배운 점을 지원 직무에서 어떻게 활용하겠습니까?',
+    '마지막으로 해당 직무에서 본인을 뽑아야 하는 이유를 말씀해 주십시오.'
+  ];
+
+  let totalTimerInterval = null;
+  let questionTimerInterval = null;
+  let totalSeconds = 0;
+  let questionSecondsLeft = 0;
+
+  function goToStep(stepNum) {
+    for(let i=0; i<=6; i++) {
+      const el = document.getElementById(`interviewStep${i}`);
+      if(el) el.classList.add('hidden');
+    }
+    document.getElementById(`interviewStep${stepNum}`).classList.remove('hidden');
+  }
+
+  function saveResumeAndNext() {
+    resumeData = {
+      education: document.getElementById('resumeEdu').value,
+      certs: document.getElementById('resumeCerts').value,
+      awards: document.getElementById('resumeAwards').value,
+      experience: document.getElementById('resumeExp').value
+    };
+    goToStep(4);
+  }
+
+  function startInterviewChat() {
+    jobGroup = document.getElementById('jobGroupInput').value.trim() || '일반 직군';
+    targetCompany = document.getElementById('targetCompanyInput').value.trim() || '목표 기업';
+
+    questionsList = ["시작하기에 앞서 1분 내외로 간단히 자기소개 부탁드립니다."];
+
+    currentQuestionIdx = 0;
+    interviewLogs = [];
+    totalSeconds = 0;
+
+    goToStep(5);
+    document.getElementById('chatBox').innerHTML = '';
+
+    appendChat('ai', `반갑습니다. 이번 ${targetCompany} ${jobGroup} 직무 모의 면접을 진행할 AI 면접관입니다.`);
+    
+    clearInterval(totalTimerInterval);
+    totalTimerInterval = setInterval(() => {
+      totalSeconds++;
+      const m = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+      const s = String(totalSeconds % 60).padStart(2, '0');
+      document.getElementById('totalTimer').innerText = `⏱️ 총 면접 시간: ${m}:${s} (40분 제한)`;
+    }, 1000);
+
+    askNextQuestion();
+  }
+
+  async function askNextQuestion() {
+    if (currentQuestionIdx >= maxInterviewQuestions) {
+      appendChat('ai', "모든 면접 질문이 끝났습니다. 수고 많으셨습니다. 잠시 후 피드백 보고서로 이동합니다.");
+      setTimeout(finishInterview, 1500);
+      return;
+    }
+
+    if (currentQuestionIdx >= questionsList.length) {
+      const waitingMessage = appendChat('ai', '답변을 바탕으로 다음 질문을 준비하고 있습니다...');
+      try {
+        const res = await fetch('/api/interview/next-question', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            resume: resumeData,
+            jobGroup,
+            company: targetCompany,
+            interviewData: interviewLogs
+          })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success || typeof data.question !== 'string' || !data.question.trim()) {
+          throw new Error(data.details || data.error || `다음 질문 요청 실패 (HTTP ${res.status})`);
+        }
+        questionsList.push(data.question.trim());
+      } catch (error) {
+        console.warn('[Next Question Client Fallback]', error);
+        const fallbackIndex = Math.min(interviewLogs.length - 1, fallbackInterviewQuestions.length - 1);
+        questionsList.push(fallbackInterviewQuestions[fallbackIndex]);
+      } finally {
+        waitingMessage.remove();
+      }
+    }
+
+    const qText = questionsList[currentQuestionIdx];
+    appendChat('ai', qText);
+
+    const tipPanel = document.getElementById('tipSidePanel');
+    if (tipPanel && !tipPanel.classList.contains('hidden')) {
+      fetchTip(qText, jobGroup, targetCompany);
+    }
+
+    questionSecondsLeft = (currentQuestionIdx === 0) ? 120 : 300;
+    startQuestionTimer();
+  }
+
+  function startQuestionTimer() {
+    clearInterval(questionTimerInterval);
+    updateTimerBadge();
+    questionTimerInterval = setInterval(() => {
+      questionSecondsLeft--;
+      updateTimerBadge();
+      if (questionSecondsLeft <= 0) {
+        clearInterval(questionTimerInterval);
+        alert('답변 제한 시간이 초과되었습니다.');
+        submitAnswer(true);
+      }
+    }, 1000);
+  }
+
+  function updateTimerBadge() {
+    const m = String(Math.floor(questionSecondsLeft / 60)).padStart(2, '0');
+    const s = String(questionSecondsLeft % 60).padStart(2, '0');
+    document.getElementById('questionTimer').innerText = `⏳ 질문 제한시간: ${m}:${s}`;
+  }
+
+  function appendChat(sender, msg) {
+    const box = document.getElementById('chatBox');
+    const div = document.createElement('div');
+    div.className = `chat-bubble chat-${sender}`;
+    div.innerText = msg;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+    return div;
+  }
+
+  function submitAnswer(isTimeout = false) {
+    clearInterval(questionTimerInterval);
+    const inputEl = document.getElementById('userInput');
+    let ansText = inputEl.value.trim();
+
+    if (isTimeout && !ansText) {
+      ansText = "(시간 초과 - 답변 미제출)";
+    } else if (!ansText) {
+      alert('답변을 입력해 주세요!');
+      startQuestionTimer();
+      return;
+    }
+
+    appendChat('user', ansText);
+    inputEl.value = '';
+
+    const timeTaken = ((currentQuestionIdx === 0) ? 120 : 300) - questionSecondsLeft;
+    interviewLogs.push({
+      question: questionsList[currentQuestionIdx],
+      answer: ansText,
+      timeTaken: Math.max(timeTaken, 1)
+    });
+
+    currentQuestionIdx++;
+    setTimeout(askNextQuestion, 1000);
+  }
+
+  // 음성 입력 지원
+  let recInterview;
+  let isRecInterview = false;
+  function toggleInterviewSpeech() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return alert('크롬 브라우저를 사용해 주세요.');
+    if(!isRecInterview) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recInterview = new SpeechRecognition();
+      recInterview.lang = 'ko-KR';
+      recInterview.start();
+      isRecInterview = true;
+
+      recInterview.onresult = (e) => {
+        document.getElementById('userInput').value = e.results[0][0].transcript;
+      };
+      recInterview.onend = () => { isRecInterview = false; };
+    } else { recInterview.stop(); }
+  }
+
+  // AI TIP 패널 토글 및 데이터 연동
+  // index.html 스크립트 수정 부분
+
+// 1. TIP 버튼 클릭 시 현재 진행 중인 질문을 확인하여 API 요청
+async function toggleTip() {
+  const tipPanel = document.getElementById('tipSidePanel');
+  const isHidden = tipPanel.classList.contains('hidden');
+
+  if (isHidden) {
+    tipPanel.classList.remove('hidden');
+    tipPanel.classList.add('flex');
+    
+    // 현재 진행 중인 면접 질문 가져오기
+    const currentQ = questionsList[currentQuestionIdx] || "현재 질문";
+    await fetchTip(currentQ, jobGroup, targetCompany);
+  } else {
+    tipPanel.classList.add('hidden');
+    tipPanel.classList.remove('flex');
+  }
+}
+
+// 2. 현재 질문 기반 TIP 요청 및 이중 안전 예외 처리
+let tipRequestSequence = 0;
+
+async function fetchTip(question, jobGroup, company) {
+  const requestSequence = ++tipRequestSequence;
+  const qText = question || questionsList[currentQuestionIdx] || "현재 질문";
+  const jGroup = jobGroup || document.getElementById('jobGroupInput')?.value || '지원 직무';
+  const comp = company || document.getElementById('targetCompanyInput')?.value || '목표 기업';
+
+  const tipContentEl = document.getElementById('tipContent');
+  tipContentEl.innerText = "💡 AI가 현재 질문을 분석하여 맞춤형 TIP을 생성하고 있습니다...";
+
+  try {
+    const res = await fetch('/api/interview/tip', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        currentQuestion: qText, 
+        jobGroup: jGroup, 
+        company: comp 
+      })
+    });
+
+    if (!res.ok) throw new Error(`HTTP error status: ${res.status}`);
+    
+    const data = await res.json();
+    if (requestSequence !== tipRequestSequence) return;
+    if (data && data.tip) {
+      tipContentEl.innerText = data.tip;
+    } else {
+      throw new Error('Tip content empty');
+    }
+  } catch (e) {
+    if (requestSequence !== tipRequestSequence) return;
+    console.warn('[TIP Fetch Fallback]', e);
+    
+    // 서버 통신 장애가 발생하더라도 사용자에게 에러 대신 질문 맞춤 힌트 제공
+    tipContentEl.innerText = 
+      `💡 [${jGroup} / ${comp}] 맞춤형 답변 TIP\n\n` +
+      `📌 질문: "${qText}"\n\n` +
+      `1. 두괄식 결론: 첫 문장에서 질문에 대한 핵심 수식어/키워드로 결론을 제시하세요.\n` +
+      `2. STAR 프레임워크: 관련 사례의 상황(S) - 역할(T) - 해결 행동(A) - 성과(R)를 제시하세요.\n` +
+      `3. 직무 연계: 해당 경험이 ${comp}의 ${jGroup} 직무에 어떻게 기여할 수 있는지 연결해보세요.`;
+  }
+}
+
+  async function finishInterview() {
+    clearInterval(totalTimerInterval);
+    clearInterval(questionTimerInterval);
+
+    goToStep(6);
+    document.getElementById('resultNoticeTitle').innerText = 'AI 분석 및 심사 보고서 생성 중...';
+
+    try {
+      const res = await fetch('/api/interview/evaluate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          resume: resumeData,
+          jobGroup: jobGroup,
+          company: targetCompany,
+          interviewData: interviewLogs,
+          totalTimeSeconds: totalSeconds
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success || !data.result) {
+        throw new Error(data.details || data.error || `평가 서버 오류 (HTTP ${res.status})`);
+      }
+
+      const r = data.result;
+      const score = Number(r.score);
+      if (!Number.isFinite(score) || typeof r.isPassed !== 'boolean' ||
+          !r.overallFeedback || !r.goodPoints || !r.badPoints) {
+        throw new Error('평가 서버 응답에 보고서 항목이 일부 누락되었습니다. 다시 시도해 주세요.');
+      }
+
+      document.getElementById('resultNoticeTitle').innerText = r.isPassed ? '✅ 최종 합격 판정' : '❌ 최종 불합격 판정';
+      document.getElementById('resultNoticeText').innerText = `${targetCompany} ${jobGroup} 지원자에 대한 심사 결과는 ${r.isPassed ? '합격' : '불합격'}입니다.`;
+
+      document.getElementById('paperScoreText').innerText = `종합 심사 점수: ${score}점 / 100점 (${r.isPassed ? '합격' : '불합격'})`;
+      document.getElementById('paperOverallFeedback').innerText = r.overallFeedback;
+      document.getElementById('paperGoodPoints').innerText = r.goodPoints;
+      document.getElementById('paperBadPoints').innerText = r.badPoints;
+
+    } catch(e) {
+      console.error('[Interview Evaluation Error]', e);
+      document.getElementById('resultNoticeTitle').innerText = '평가 보고서를 생성하지 못했습니다.';
+      document.getElementById('resultNoticeText').innerText = e.message || '잠시 후 다시 시도해 주세요.';
+    }
+  }
+
+  function showFeedbackPaper() {
+    const el = document.getElementById('feedbackPaper');
+    el.classList.remove('hidden');
+    el.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function resetInterview() {
+    document.getElementById('feedbackPaper').classList.add('hidden');
+    goToStep(0);
+  }
+
+  function bindEnterToAction(selector, action) {
+    document.querySelectorAll(selector).forEach((input) => {
+      input.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' || event.isComposing) return;
+        event.preventDefault();
+        action();
+      });
+    });
+  }
+
+  bindEnterToAction('#companyInput', searchJobs);
+  bindEnterToAction('#interviewStep1 input', () => goToStep(2));
+  bindEnterToAction('#interviewStep2 input', saveResumeAndNext);
+  bindEnterToAction('#interviewStep4 input', startInterviewChat);
+</script>
+
+</body>
+</html>
